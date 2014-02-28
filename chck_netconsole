@@ -1,0 +1,142 @@
+#!/bin/bash
+
+CONFIG_DIR="/sys/kernel/config"
+NC_MOD_CFG_PATH="$CONFIG_DIR/netconsole"
+NC_TARGET_PATH="$NC_MOD_CFG_PATH/target1"
+LOCAL_INT="<%=localInt%>"
+LOCAL_ADDR="<%=localAddr%>"
+REMOTE_ADDR="<%=remoteAddr%>"
+REMOTE_PORT="<%=remotePort%>"
+REMOTE_MAC="<%=remoteMac%>"
+DMESG_LEVEL="<%=dmesgLevel%>"
+
+
+function error()
+{
+    echo "Error:$1 `basename $0`:$2"
+    sleep 1
+    exit 1
+}
+
+
+function check_error()
+{
+    if [ 0 -ne $? ]
+    then
+        error "$1" "${BASH_LINENO}"
+    fi
+}
+
+function do_exit()
+{
+    error "$1" "${BASH_LINENO}"
+}
+
+function check_netconsole_module_and_fs()
+{
+    if [ ! -d $CONFIG_DIR ]
+    then
+        modprobe configfs
+        check_error "Load kernel module config filesystem."
+    fi
+
+    mount | grep configfs| grep /sys/kernel/config > /dev/null
+    CH_CONFIGFS=$?
+
+    if [ 0 -ne $CH_CONFIGFS ]
+    then
+        mount none -t configfs $CONFIG_DIR
+        check_error "Mount kernel config filesystem."
+        echo "mount"
+    fi
+   
+    if [ ! -d /sys/kernel/config/netconsole ]
+    then
+        modprobe netconsole
+        check_error "Load netconsole module."
+            
+    fi
+
+    if [ ! -d $NC_TARGET_PATH ]
+    then
+        mkdir $NC_TARGET_PATH
+        check_error "Make target directory."
+    fi
+
+}
+
+
+function reconfig_netconsole()
+{
+    echo "Reconfigure netconsole."
+    echo 0 > $NC_TARGET_PATH/enabled
+    check_error "Disable netconsole."
+    echo $LOCAL_ADDR > $NC_TARGET_PATH/local_ip
+    check_error "Set local IP."
+    echo $LOCAL_INT > $NC_TARGET_PATH/dev_name
+    check_error "Set interface."
+    echo $REMOTE_ADDR > $NC_TARGET_PATH/remote_ip
+    check_error "Set remote IP."
+    echo $REMOTE_PORT > $NC_TARGET_PATH/remote_port
+    check_error "Set remote port."
+    echo $REMOTE_MAC > $NC_TARGET_PATH/remote_mac
+    check_error "Set remote MAC."
+
+    echo 1 > $NC_TARGET_PATH/enabled
+    check_error "Enable netconsole."
+    
+}
+
+function check_netconsole()
+{
+    check_netconsole_module_and_fs
+
+    if [ -e $NC_TARGET_PATH/local_ip ]
+    then
+        CUR_LOCAL_ADDR=`cat $NC_TARGET_PATH/local_ip`
+        if [ "$LOCAL_ADDR" != "$CUR_LOCAL_ADDR" ]
+        then
+            echo "Local addr not equal $LOCAL_ADDR $CUR_LOCAL_ADDR"
+            reconfig_netconsole
+        fi
+
+        CUR_LOCAL_INT=`cat $NC_TARGET_PATH/dev_name`
+        if [ "$LOCAL_INT" != "$CUR_LOCAL_INT" ]
+        then
+            echo "Local int not equal $LOCAL_INT $CUR_LOCAL_INT"
+            reconfig_netconsole
+        fi
+
+        CUR_REMOTE_ADDR=`cat $NC_TARGET_PATH/remote_ip`
+        if [ "$REMOTE_ADDR" != "$CUR_REMOTE_ADDR" ]
+        then
+            reconfig_netconsole
+        fi
+
+        CUR_REMOTE_PORT=`cat $NC_TARGET_PATH/remote_port`
+        if [ "$REMOTE_PORT" != "$CUR_REMOTE_PORT" ]
+        then
+            reconfig_netconsole
+        fi
+
+        CUR_REMOTE_MAC=`cat $NC_TARGET_PATH/remote_mac`
+        if [ "$REMOTE_MAC" != "$CUR_REMOTE_MAC" ]
+        then
+            reconfig_netconsole
+        fi
+
+        
+         
+    else
+        reconfig_netconsole
+    fi
+}
+
+while [ 1 ]
+do
+
+check_netconsole
+echo "It seems all right. Go to sleep..."
+sleep 60
+
+done
