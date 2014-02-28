@@ -66,6 +66,55 @@ function check_netconsole_module_and_fs()
 }
 
 
+function check_file()
+{
+    if [ -z "$1" ]
+    then
+        echo "File not set."
+        exit 1
+    fi
+
+    if [ -z "$2" ]
+    then
+        echo "Function not set."
+        exit 1
+    fi
+
+    if [ ! -e $1 ]
+    then
+        eval $2
+    fi
+}
+
+
+function check_file_content()
+{
+    if [ -z "$1" ]
+    then
+        echo "File not set."
+        exit 1
+    fi
+
+    if [ -z "$2" ]
+    then
+        echo "Content not set."
+        exit 1
+    fi
+
+
+    if [ -z "$3" ]
+    then
+        echo "Function not set."
+        exit 1
+    fi
+
+    CUR_VAL=`cat $1`
+    if [ "$2" != "$CUR_VAL" ]
+    then
+        eval $3
+    fi
+}
+
 function reconfig_netconsole()
 {
     echo "Reconfigure netconsole."
@@ -91,45 +140,20 @@ function check_netconsole()
 {
     check_netconsole_module_and_fs
 
-    if [ -e $NC_TARGET_PATH/local_ip ]
-    then
-        CUR_LOCAL_ADDR=`cat $NC_TARGET_PATH/local_ip`
-        if [ "$LOCAL_ADDR" != "$CUR_LOCAL_ADDR" ]
-        then
-            echo "Local addr not equal $LOCAL_ADDR $CUR_LOCAL_ADDR"
-            reconfig_netconsole
-        fi
+    check_file $NC_TARGET_PATH/local_ip reconfig_netconsole
+    check_file $NC_TARGET_PATH/dev_name reconfig_netconsole
+    check_file $NC_TARGET_PATH/remote_ip reconfig_netconsole
+    check_file $NC_TARGET_PATH/remote_port reconfig_netconsole
+    check_file $NC_TARGET_PATH/remote_mac reconfig_netconsole
 
-        CUR_LOCAL_INT=`cat $NC_TARGET_PATH/dev_name`
-        if [ "$LOCAL_INT" != "$CUR_LOCAL_INT" ]
-        then
-            echo "Local int not equal $LOCAL_INT $CUR_LOCAL_INT"
-            reconfig_netconsole
-        fi
-
-        CUR_REMOTE_ADDR=`cat $NC_TARGET_PATH/remote_ip`
-        if [ "$REMOTE_ADDR" != "$CUR_REMOTE_ADDR" ]
-        then
-            reconfig_netconsole
-        fi
-
-        CUR_REMOTE_PORT=`cat $NC_TARGET_PATH/remote_port`
-        if [ "$REMOTE_PORT" != "$CUR_REMOTE_PORT" ]
-        then
-            reconfig_netconsole
-        fi
-
-        CUR_REMOTE_MAC=`cat $NC_TARGET_PATH/remote_mac`
-        if [ "$REMOTE_MAC" != "$CUR_REMOTE_MAC" ]
-        then
-            reconfig_netconsole
-        fi
+    check_file_content $NC_TARGET_PATH/local_ip $LOCAL_ADDR reconfig_netconsole
+    check_file_content $NC_TARGET_PATH/dev_name $LOCAL_INT reconfig_netconsole
+    check_file_content $NC_TARGET_PATH/remote_ip $REMOTE_ADDR reconfig_netconsole
+    check_file_content $NC_TARGET_PATH/remote_port $REMOTE_PORT reconfig_netconsole
+    check_file_content $NC_TARGET_PATH/remote_mac $REMOTE_MAC reconfig_netconsole
 
         
          
-    else
-        reconfig_netconsole
-    fi
 }
 
 while [ 1 ]
