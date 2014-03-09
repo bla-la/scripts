@@ -1,5 +1,7 @@
 #!/bin/bash
 
+SCRIPT_NAME="netconsole-ena"
+
 CONFIG_DIR="/sys/kernel/config"
 NC_MOD_CFG_PATH="$CONFIG_DIR/netconsole"
 NC_TARGET_PATH="$NC_MOD_CFG_PATH/target1"
@@ -10,6 +12,7 @@ REMOTE_PORT="<%=remotePort%>"
 REMOTE_MAC="<%=remoteMac%>"
 DMESG_LEVEL="<%=dmesgLevel%>"
 
+echo -n "$SCRIPT_NAME" > /proc/self/comm
 
 function error()
 {

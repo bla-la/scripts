@@ -1,0 +1,30 @@
+#!/usr/bin/env stap
+#
+global nfsd_dispatch, nfsd_getattr_hit
+
+probe nfsd.dispatch {
+    nfsd_dispatch[tid()] = client_ip;
+#    printf ("%s\n",client_ip);
+}
+
+
+probe module("nfsd").function("nfsd3_proc_getattr")
+{
+    nfsd_getattr_hit[tid()] = 1;
+}
+
+probe module("nfsd").function("nfsd3_proc_getattr").return
+{
+    delete nfsd_dispatch[tid()];
+    delete nfsd_getattr_hit[tid()];
+}
+
+
+probe kernel.function("vfs_getattr").return
+{
+    if (nfsd_getattr_hit[tid()]) {
+        d_mount = @cast($mnt,"vfsmount")->mnt_mountpoint;
+        d_parent = @cast($dentry,"dentry")->d_parent;
+        printf("Client %s %s/%s\n",nfsd_dispatch[tid()],reverse_path_walk(d_parent),d_name($dentry));
+    }
+}
